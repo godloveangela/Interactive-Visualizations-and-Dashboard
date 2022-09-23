@@ -1,4 +1,4 @@
-{
+window.MyData = {
     "names": [
         "940",
         "941",

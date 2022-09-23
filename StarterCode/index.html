@@ -2,55 +2,254 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Bellybutton Biodiversity</title>
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Bellybutton Biodiversity</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.2.1/dist/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.5.0/d3.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.14.0.min.js"></script>
+    <script src="./samples.js"></script>
+
+    <style>
+        .info > div {
+            height: 28px;
+            display: flex;
+            align-items: center;
+            padding-left: 16px;
+        }
+
+        .info > div > span {
+            padding-right: 6px;
+        }
+
+        .row {
+            margin-top: 20px;
+        }
+        #bar,
+        #gauge,
+        #bubble {
+            width: 480px;
+            height: 368px;
+            border: 1px dashed #999;
+            margin: 0 auto 0;
+        }
+
+        #bubble {
+            width: 1080px;
+            height: 460px;
+        }
+
+        rect {
+            fill:steelblue;
+        }
+        text {
+            font-size: 1.1em;
+        }
+
+		.bubble > div {
+			padding: 12px 0;
+			text-align: center;
+			font-size: 18px;
+			color: #000;
+		}
+    </style>
 </head>
 
 <body>
 
-  <div class="container">
+<div class="container">
     <div class="row">
-      <div class="col-md-12 jumbotron text-center">
-        <h1>Belly Button Biodiversity Dashboard</h1>
-        <p>Use the interactive charts below to explore the dataset</p>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-md-2">
-        <div class="well">
-          <h5>Test Subject ID No.:</h5>
-          <select id="selDataset" onchange="optionChanged(this.value)"></select>
+        <div class="col-md-12 jumbotron text-center">
+            <h1>Belly Button Biodiversity Dashboard</h1>
+            <p>Use the interactive charts below to explore the dataset</p>
         </div>
-        <div class="panel panel-primary">
-          <div class="panel-heading">
-            <h3 class="panel-title">Demographic Info</h3>
-          </div>
-          <div id="sample-metadata" class="panel-body"></div>
-        </div>
-      </div>
-      <div class="col-md-5">
-        <div id="bar"></div>
-      </div>
-      <div class="col-md-5">
-        <div id="gauge"></div>
-      </div>
     </div>
     <div class="row">
-      <div class="col-md-12">
-        <div id="bubble"></div>
-      </div>
+        <div class="col-md-2">
+            <div class="well">
+                <h5 id="showId">Test Subject ID No.:</h5>
+                <select id="select" onchange="changeSelect()" style="width: 80px;"></select>
+            </div>
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Demographic Info</h3>
+                </div>
+                <div id="info" class="info"></div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <svg id="bar"></svg>
+        </div>
+        <div class="col-md-5">
+            <div id="gauge"></div>
+        </div>
     </div>
-  </div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.5.0/d3.js"></script>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-  <script src="./static/js/app.js"></script>
-  <script src="./static/js/bonus.js"></script>
-  <script src="samples.json"></script>
-  
+    <div class="bubble">
+        <svg id="bubble"></svg>
+		<div>OTU ID</div>
+    </div>
+</div>
 </body>
 
 </html>
+<script>
+	window.update = () => {
+		$('#showId').text(`Test Subject ID No.: ${ MyId }`)
+
+		const dataInfo = MyData.metadata.find(i => Number(MyId) === Number(i.id))
+		const samples = MyData.samples.find(i => Number(MyId) === Number(i.id))
+
+		window.MyChartData = samples
+		window.MyDataInfo = dataInfo
+
+		$('#showId').text(`Test Subject ID No.: ${ MyId }`)
+
+		$('#info').html(`
+            <div><span>id:</span><span>${ dataInfo.id }</span></div>
+            <div><span>ethnicity:</span><span>${ dataInfo.ethnicity }</span></div>
+            <div><span>gender:</span><span>${ dataInfo.gender }</span></div>
+            <div><span>age:</span><span>${ dataInfo.age }</span></div>
+            <div><span>location:</span><span>${ dataInfo.location }</span></div>
+            <div><span>bbtype:</span><span>${ dataInfo.bbtype }</span></div>
+            <div><span>wfreq:</span><span>${ dataInfo.wfreq }</span></div>
+        `)
+	}
+
+	const changeSelect = () => {
+		window.MyId = $("#select option:selected").val() - 0;
+		update()
+		initBarChart()
+		initBubbleChart()
+		initGaugeChart()
+	}
+
+	window.randomColor = () => {
+		var str="#";
+		var arr=["0","1","2","3","4","5","6","7","8","9","a","b","c","d","e","f"];
+		for(var i=0;i<6;i++){
+			var num=parseInt(Math.random()*16);
+			str+=arr[num];
+		}
+		return str;
+	}
+</script>
+
+<script>
+	const initBarChart = () => {
+		const barChartDataY = MyChartData.otu_ids.slice(0, 10).map(i => `OTU ${i}`)
+		const barChartDataX = MyChartData.sample_values.slice(0, 10).map(i => Number(i))
+		const barChartData = []
+		barChartDataY.map((i, index) => barChartData.push({ id: i, value: barChartDataX[index] }))
+
+		$('#bar').html('<svg id="bar"></svg>>')
+
+		const svg = d3.select('#bar');
+		const width = 460;
+		const height = 360;
+
+
+		const margin = { left:80, top:10, right:20, bottom:30};
+		const innerHeight = height - margin.top - margin.bottom;
+		const innerWidth = width - margin.left - margin.right;
+
+		const xValue = d => d.value;
+		const yValue = d => d.id;
+
+		const xScale = d3.scaleLinear()
+			.domain([0, d3.max(barChartData,xValue)])
+			.range([0, innerWidth]) //最大值将视图空间充满
+		const yScale = d3.scaleBand()
+			.domain(barChartData.map(yValue))
+			.range([0, innerHeight])
+			.padding(0.15)
+		const g = svg.append('g')
+			.attr('transform', `translate(${margin.left},${margin.top})`)
+		g.selectAll('rect').data(barChartData)  
+			.enter().append('rect')
+			.attr('y',d => yScale(yValue(d)))
+			.attr('width', d => xScale(xValue(d)))
+			.attr('height',yScale.bandwidth())
+		g.append('g').call(d3.axisLeft(yScale));
+		g.append('g').call(d3.axisBottom(xScale))
+			.attr('transform',`translate(0,${innerHeight})`)
+	}
+
+	const initBubbleChart = () => {
+		const barChartDataX = MyChartData.otu_ids.map(i => Number(i))
+		const barChartDataY = MyChartData.sample_values.map(i => Number(i))
+		const barChartData = []
+		barChartDataX.map((i, index) => barChartData.push({ id: i, value: barChartDataY[index] }))
+		// console.log(barChartDataX)
+		// console.log(Math.max(...barChartDataX))
+
+		$('#bubble').html('<svg id="bubble"></svg>>')
+
+		const bubble = d3.select('#bubble');
+		const width = 1080;
+		const height = 460;
+
+
+		const margin = { left: 60, top: 60, right: 40, bottom: 40};
+		const innerHeight = height - margin.top - margin.bottom;
+		const innerWidth = width - margin.left - margin.right;
+
+		const xValue = d => d.id;
+		const yValue = d => d.value;
+
+		const xScale = d3.scaleLinear()
+			.domain([0, d3.max(barChartData, xValue)])
+			.range([0, innerWidth]) 
+
+		const yScale = d3.scaleLinear()
+			.domain([d3.max(barChartData, yValue), 0])
+			.range([0, innerHeight]) 
+
+		const g = bubble.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
+		//
+		g.selectAll('circle').data(barChartData).enter()
+			.insert("circle")
+			.attr("cx", (d) => xScale(xValue(d)))
+			.attr("cy", (d) => yScale(yValue(d)))
+			.attr("r", (d) => yValue(d) / 2.5)
+			.style("fill", () => `${randomColor()}66`);
+
+		g.append('g').call(d3.axisLeft(yScale));
+		g.append('g').call(d3.axisBottom(xScale))
+			.attr('transform',`translate(0,${innerHeight})`)
+	}
+
+	const initGaugeChart = () => {
+		const data = [
+			{
+				domain: { x: [0, 1], y: [0, 1] },
+				value: MyDataInfo.wfreq,
+				title: { text: "Belly Button Washing Frequency Weekly" },
+				type: "indicator",
+				mode: "gauge+number",
+				gauge: {
+					axis: { range: [0, 10] },
+				}
+			}
+		];
+
+		const layout = { width: 420, height: 320, margin: { t: 0, b: 0, l: 60 } };
+		Plotly.newPlot('gauge', data, layout);
+	}
+</script>
+
+<script type="module" async defer>
+	window.MyId = window.MyData.names[0] - 0
+	MyData.names.map(i => $(`<option value="${i}">${i}</option>`).appendTo($('#select')))
+
+	update()
+	initBarChart()
+	initBubbleChart()
+	initGaugeChart()
+</script>
+
+
+
